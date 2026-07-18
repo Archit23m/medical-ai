@@ -1,30 +1,33 @@
 """
-Symptom-Checker Web App (Flask backend)
-========================================
-Public-facing web version of the symptom-checker agent.
+Symptom-Checker Web App (Flask backend) — Gemini version
+==========================================================
+Public-facing web version of the symptom-checker agent, now powered by
+Google's Gemini API instead of Anthropic's.
 
 Run locally:
     pip install -r requirements.txt --break-system-packages
-    export ANTHROPIC_API_KEY=sk-ant-...
+    export GEMINI_API_KEY=...
     python3 app.py
     -> open http://localhost:5000
 
+Get a free API key: https://aistudio.google.com/apikey
 Deploy: see DEPLOY.md
 """
 
 import os
 import json
 from flask import Flask, request, jsonify, render_template
-import anthropic
+from google import genai
+from google.genai import types
 
 app = Flask(__name__)
 
-MODEL = "claude-sonnet-4-6"
+MODEL = "gemini-3.5-flash"  # fast, free-tier friendly default
 
-API_KEY = os.environ.get("ANTHROPIC_API_KEY")
+API_KEY = os.environ.get("GEMINI_API_KEY")
 if not API_KEY:
-    print("FATAL: ANTHROPIC_API_KEY environment variable is not set.")
-client = anthropic.Anthropic(api_key=API_KEY) if API_KEY else None
+    print("FATAL: GEMINI_API_KEY environment variable is not set.")
+client = genai.Client(api_key=API_KEY) if API_KEY else None
 
 RED_FLAG_KEYWORDS = [
     "chest pain", "difficulty breathing", "shortness of breath",
@@ -45,7 +48,7 @@ Rules you must always follow:
 4. Ask at most 3 concise follow-up questions if the description is too vague (duration, severity, associated symptoms, relevant history).
 5. Never suggest specific drug dosages or prescription medications.
 6. Always end with a recommendation to consult a licensed healthcare professional, specifying urgency.
-7. Respond ONLY in valid JSON matching this schema, nothing else:
+7. Respond ONLY in valid JSON matching this schema, nothing else, no markdown fences:
 {
   "needs_more_info": bool,
   "follow_up_questions": [string],
@@ -59,6 +62,18 @@ Rules you must always follow:
 def check_red_flags(text: str):
     text_lower = text.lower()
     return [kw for kw in RED_FLAG_KEYWORDS if kw in text_lower]
+
+
+def to_gemini_contents(conversation):
+    """Convert our {role: user/assistant, content: str} list into
+    Gemini's {role: user/model, parts: [...]} format."""
+    contents = []
+    for turn in conversation:
+        role = "model" if turn["role"] == "assistant" else "user"
+        contents.append(
+            types.Content(role=role, parts=[types.Part(text=turn["content"])])
+        )
+    return contents
 
 
 @app.route("/")
@@ -84,16 +99,19 @@ def analyze():
         })
 
     if client is None:
-        return jsonify({"error": "Server misconfigured: ANTHROPIC_API_KEY is not set."}), 500
+        return jsonify({"error": "Server misconfigured: GEMINI_API_KEY is not set."}), 500
 
     try:
-        response = client.messages.create(
+        response = client.models.generate_content(
             model=MODEL,
-            max_tokens=1000,
-            system=SYSTEM_PROMPT,
-            messages=conversation,
+            contents=to_gemini_contents(conversation),
+            config=types.GenerateContentConfig(
+                system_instruction=SYSTEM_PROMPT,
+                response_mime_type="application/json",
+                max_output_tokens=1000,
+            ),
         )
-        raw = response.content[0].text.strip()
+        raw = response.text.strip()
         raw = raw.replace("```json", "").replace("```", "").strip()
         result = json.loads(raw)
         result["emergency"] = False
