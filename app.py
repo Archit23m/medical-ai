@@ -20,7 +20,11 @@ import anthropic
 app = Flask(__name__)
 
 MODEL = "claude-sonnet-4-6"
-client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+
+API_KEY = os.environ.get("ANTHROPIC_API_KEY")
+if not API_KEY:
+    print("FATAL: ANTHROPIC_API_KEY environment variable is not set.")
+client = anthropic.Anthropic(api_key=API_KEY) if API_KEY else None
 
 RED_FLAG_KEYWORDS = [
     "chest pain", "difficulty breathing", "shortness of breath",
@@ -78,6 +82,9 @@ def analyze():
             "emergency": True,
             "matched_keywords": matched,
         })
+
+    if client is None:
+        return jsonify({"error": "Server misconfigured: ANTHROPIC_API_KEY is not set."}), 500
 
     try:
         response = client.messages.create(
