@@ -108,15 +108,35 @@ def analyze():
             config=types.GenerateContentConfig(
                 system_instruction=SYSTEM_PROMPT,
                 response_mime_type="application/json",
-                max_output_tokens=1000,
+                max_output_tokens=2048,
+                safety_settings=[
+                    types.SafetySetting(
+                        category="HARM_CATEGORY_DANGEROUS_CONTENT",
+                        threshold="BLOCK_ONLY_HIGH",
+                    ),
+                    types.SafetySetting(
+                        category="HARM_CATEGORY_HARASSMENT",
+                        threshold="BLOCK_ONLY_HIGH",
+                    ),
+                ],
             ),
         )
-        raw = response.text.strip()
+
+        # Check for truncation or a safety block before trying to parse
+        candidate = response.candidates[0] if response.candidates else None
+        finish_reason = getattr(candidate, "finish_reason", None) if candidate else None
+        raw = response.text.strip() if response.text else ""
+
+        if not raw:
+            print(f"EMPTY RESPONSE — finish_reason={finish_reason}, full response: {response}")
+            return jsonify({"error": f"Model returned no text (finish_reason={finish_reason}). This can happen when the safety filter blocks a response — try rephrasing."}), 500
+
         raw = raw.replace("```json", "").replace("```", "").strip()
         result = json.loads(raw)
         result["emergency"] = False
         return jsonify(result)
     except json.JSONDecodeError:
+        print(f"JSON PARSE FAILED. Raw model output was: {raw!r}")
         return jsonify({
             "emergency": False,
             "needs_more_info": False,
