@@ -87,6 +87,13 @@ async function send() {
     });
     const data = await res.json();
 
+    if (!res.ok || data.error) {
+      addAgentBubble(`<em>Server error: ${escapeHtml(data.error || 'unknown error, status ' + res.status)}</em>`);
+      conversation.pop(); // remove the user message that failed, so retry is clean
+      sendBtn.disabled = false;
+      return;
+    }
+
     if (data.emergency) {
       emergencyText.textContent = 'Detected: ' + data.matched_keywords.join(', ');
       emergencyBanner.classList.add('show');

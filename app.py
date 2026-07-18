@@ -107,6 +107,8 @@ def analyze():
             "recommendation": "Could not process that — please consult a doctor directly.",
         })
     except Exception as e:
+        import traceback
+        traceback.print_exc()  # shows full error in Render logs
         return jsonify({"error": str(e)}), 500
 
 
