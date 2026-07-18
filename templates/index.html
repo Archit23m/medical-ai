@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Symptom Check — not a diagnosis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <span class="eyebrow">SYMPTOM CHECK</span>
+    <span class="not-diag">— not a diagnosis</span>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="intro">
+    <h1>Tell it what you're feeling.</h1>
+    <p class="sub">It reasons through possible causes and how urgently you should see someone. It never tells you what you have — only a real clinician can do that.</p>
+  </section>
+
+  <div class="emergency-banner" id="emergencyBanner">
+    <div class="eb-title">This sounds urgent</div>
+    <div class="eb-body" id="emergencyText"></div>
+    <div class="eb-action">Call your local emergency number or go to the nearest emergency room now.</div>
+  </div>
+
+  <section class="chat" id="chat"></section>
+
+  <section class="composer">
+    <textarea id="input" placeholder="e.g. dull headache since this morning, worse when I stand up, no fever" rows="2"></textarea>
+    <button id="send">Check</button>
+  </section>
+
+  <p class="disclaimer">This tool gives general information only and cannot account for your full medical history. It is not a substitute for professional medical advice, diagnosis, or treatment. If you are experiencing a medical emergency, contact emergency services immediately.</p>
+
+</main>
+
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
