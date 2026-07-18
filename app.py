@@ -108,7 +108,8 @@ def analyze():
             config=types.GenerateContentConfig(
                 system_instruction=SYSTEM_PROMPT,
                 response_mime_type="application/json",
-                max_output_tokens=2048,
+                max_output_tokens=3000,
+                thinking_config=types.ThinkingConfig(thinking_level="low"),
                 safety_settings=[
                     types.SafetySetting(
                         category="HARM_CATEGORY_DANGEROUS_CONTENT",
@@ -132,7 +133,20 @@ def analyze():
             return jsonify({"error": f"Model returned no text (finish_reason={finish_reason}). This can happen when the safety filter blocks a response — try rephrasing."}), 500
 
         raw = raw.replace("```json", "").replace("```", "").strip()
-        result = json.loads(raw)
+        try:
+            result = json.loads(raw)
+        except json.JSONDecodeError:
+            # Safety net: response may be missing trailing braces if it was
+            # cut off right at the end. Try appending closing characters.
+            repaired = raw
+            for suffix in ['}', '"}', '"}]}', '"]}', '"}}', '"']:
+                try:
+                    result = json.loads(repaired + suffix)
+                    break
+                except json.JSONDecodeError:
+                    continue
+            else:
+                raise  # nothing worked, let outer handler catch it
         result["emergency"] = False
         return jsonify(result)
     except json.JSONDecodeError:
